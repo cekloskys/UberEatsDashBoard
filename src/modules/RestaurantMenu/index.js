@@ -1,8 +1,24 @@
-import { Card, Table, Button } from "antd";
-import dishes from '../../data/dashboard/dishes.json';
+import { Card, Table, Button, Popconfirm, message } from "antd";
+import { DataStore } from "aws-amplify";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { useRestaurantContext } from "../../contexts/RestaurantContext";
+import { Dish } from "../../models";
 
 const RestaurantMenu = () => {
+    const [dishes, setDishes] = useState([]);
+    const { restaurant } = useRestaurantContext();
+
+    useEffect(() => {
+        DataStore.query(Dish, d => d.restaurantID.eq(restaurant.id)).then(setDishes);
+    }, [restaurant?.id]);
+
+    const deleteDish = async (item) => {
+        await DataStore.delete(Dish, d => d.id.eq(item.id));
+        setDishes(dishes.filter((d) => d.id !== item.id));
+        message.success('Dish has been deleted.');
+    };
+
     const tableColumns = [
         {
             title: 'Menu Item',
@@ -18,20 +34,30 @@ const RestaurantMenu = () => {
         {
             title: 'Action',
             key: 'action',
-            render: () => <Button danger type='primary'>Remove</Button>
+            render: (_, item) => (
+                <Popconfirm
+                    placement="topLeft"
+                    title={'Are you sure you want to delete this dish?'}
+                    onConfirm={() => deleteDish(item)}
+                    okText="Yes"
+                    cancelText="No"
+                >
+                    <Button danger type='primary'>Remove</Button>
+                </Popconfirm>
+            )
         },
     ];
 
     const renderNewItemButton = () => {
-        return(
+        return (
             <Link to={'create'}>
                 <Button type='primary'>New Item</Button>
-            </Link> 
+            </Link>
         );
     };
 
     return (
-        <Card title={'Menu'} style={{margin: 20}} extra={renderNewItemButton()}>
+        <Card title={'Menu'} style={{ margin: 20 }} extra={renderNewItemButton()}>
             <Table dataSource={dishes} columns={tableColumns} rowKey='id' />
         </Card>
     );
